@@ -20,7 +20,7 @@ Construct a new App Store Connect client, then use the various services on the c
 client := asc.NewClient(nil)
 
 // list all apps with the bundle ID "com.sky.MyApp"
-apps, _, err := client.Apps.ListApps(&asc.ListAppsQuery{
+apps, _, err := client.Apps.ListApps(context.Background(), &asc.ListAppsQuery{
     FilterBundleID: []string{"com.sky.MyApp"},
 })
 ```
@@ -35,6 +35,8 @@ You may find that the code snippet above will always fail due to a lack of autho
 
 ```go
 import (
+    "context"
+    "log"
     "os"
     "time"
 
@@ -47,18 +49,21 @@ func main() {
     // Issuer ID for the App Store Connect team
     issuerID := "...."
     // A duration value for the lifetime of a token. App Store Connect does not accept a token with a lifetime of longer than 20 minutes
-    expiryDuration = 20*time.Minute
+    expiryDuration := 20*time.Minute
     // The bytes of the PKCS#8 private key created on App Store Connect. Keep this key safe as you can only download it once.
-    privateKey = os.ReadFile("path/to/key")
-
-    auth, err = asc.NewTokenConfig(keyID, issuerID, expiryDuration, privateKey)
+    privateKey, err := os.ReadFile("path/to/key")
     if err != nil {
-        return nil, err
+        log.Fatal(err)
+    }
+
+    auth, err := asc.NewTokenConfig(keyID, issuerID, expiryDuration, privateKey)
+    if err != nil {
+        log.Fatal(err)
     }
     client := asc.NewClient(auth.Client())
 
     // list all apps with the bundle ID "com.sky.MyApp" in the authenticated user's team
-    apps, _, err := client.Apps.ListApps(&asc.ListAppsQuery{
+    apps, _, err := client.Apps.ListApps(context.Background(), &asc.ListAppsQuery{
         FilterBundleID: []string{"com.sky.MyApp"},
     })
 }
@@ -77,7 +82,7 @@ Learn more about rate limiting at <https://developer.apple.com/documentation/app
 All requests for resource collections (apps, builds, beta groups, etc.) support pagination. Responses for paginated resources will contain a `Links` property of type `PagedDocumentLinks`, with `Reference` URLs for first, next, and self. A `Reference` can have its cursor extracted with the `Cursor()` method, and that can be passed to a query param using its `Cursor` field. You can also find more information about the per-page limit and total count of resources in the response's `Meta` field of type `PagingInformation`.
 
 ```go
-auth, _ = asc.NewTokenConfig(keyID, issuerID, expiryDuration, privateKey)
+auth, _ := asc.NewTokenConfig(keyID, issuerID, expiryDuration, privateKey)
 client := asc.NewClient(auth.Client())
 
 opt := &asc.ListAppsQuery{
@@ -86,11 +91,11 @@ opt := &asc.ListAppsQuery{
 
 var allApps []asc.App
 for {
-    apps, _, err := apps, _, err := client.Apps.ListApps(opt)
-	if err != nil {
-		return err
-	}
-	allApps = append(allApps, apps.Data...)
+    apps, _, err := client.Apps.ListApps(context.Background(), opt)
+    if err != nil {
+        log.Fatal(err)
+    }
+    allApps = append(allApps, apps.Data...)
     if apps.Links.Next == nil {
         break
     }
